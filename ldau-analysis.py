@@ -6,10 +6,37 @@ import os
 import glob
 import re
 import pickle
+import csv
+from itertools import groupby
 
 import numpy as np
 from pymatgen.io.vasp import Vasprun
 
+
+def read_E_vs_U(filename = "data/E-vs-U-all-USPEX-Ran.dat"):
+    '''
+    Returned data structure is dict with keys = EA___ and
+    values = {U: [U1, U2, ...], E: [U1, U2, ...]}
+    '''
+    with open(filename, "r") as csvfile:
+        f = csv.reader(csvfile)
+        data = [line for line in f]
+
+    ID, SYSTEM, ENE, SPIN, UMINUSJ, KPTS = range(6)
+    NATOMS = 8
+    EV_TO_MEV = 1000
+
+    keyfunc = lambda x: x[SYSTEM]
+    # ignore header line + only keep spin-polarized calculations
+    data = sorted([x for x in data[1:] if x[SPIN] == "True"], key = keyfunc)
+    processed = {}
+    for system,g in groupby(data, keyfunc):
+        rows = sorted(list(g), key = lambda x: x[UMINUSJ])
+        processed[system] = {
+            "U": [float(row[UMINUSJ]) for row in rows],
+            "E": [float(row[ENE])*EV_TO_MEV/NATOMS for row in rows],
+            }
+    return processed
 
 def params_from_dir(d):
     spin, name, U = [e.split('_')[-1] for e in d.split('/')[-3].split('#')]
@@ -78,6 +105,7 @@ def main():
         with open(datafile, 'wb') as f:
             pickle.dump(DMs, f)
 
+    # compute sum_spin tr{n-n^2}
     tr_rho = []
     for dm in DMs:
         if dm['U'] > 0:
@@ -86,13 +114,31 @@ def main():
             nn2 = np.trace(dm1 - np.dot(dm1, dm1)) + np.trace(dm2 - np.dot(dm2, dm2))
             tr_rho.append((dm['NAME'], dm['U'], nn2))
 
-    # don't import matplotlib unless absolutely necessary
+    E_vs_U = read_E_vs_U()
+
     import matplotlib.pyplot as plt
+
+    # Scatter plot of tr{n-n^2} vs. U
+    plt.figure()
     for u0 in [1.0, 2.0, 3.0]:
         yy = sorted([c for n,u,c in tr_rho if u == u0])
         plt.plot([u0]*len(yy), yy, 'o')
     plt.xlim(0, 4)
-    plt.show()
+    plt.xlabel("U (eV)")
+    plt.ylabel("$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$")
+    plt.title("Itineracy vs. U")
+    plt.savefig("trnn2-vs-U.pdf", bbox_inches = 'tight')
+
+    # Scatter plot of E(1)-E(0) vs. tr{n-n^2}
+    plt.figure()
+    trnn2 = dict((n, c) for n,u,c in tr_rho if u == 1.0)
+    dE = dict((n, E_vs_U[n]['E'][1] - E_vs_U[n]['E'][0]) for n in trnn2)
+    for x,y in [(trnn2[name], dE[name]) for name in trnn2]:
+        plt.plot([x], [y], 'o', color = 'blue', alpha = 0.5)
+    plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
+    plt.ylabel('E(1eV) - E(0eV) (meV/atom)')
+    plt.title('Energy Change vs. Itineracy')
+    plt.savefig('dE-vs-trnn2.pdf', bbox_inches = 'tight')
 
 if __name__ == '__main__':
     main()
