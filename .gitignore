@@ -5,3 +5,6 @@ __pycache__/
 
 # data stored in Python pickle files
 *.pickle
+
+data
+results
