@@ -141,9 +141,11 @@ def read_individuals_file(filename):
     for line in lines[2:]:      # ignore labels
         matches = re.match(r'(.*)\[(.*)\](.*)\[(.*)\](.*)', line)
         head, comp, mid, kpts, tail = matches.groups()
+        types = [int, int, str, list, float, float, float, float, list, int,
+                 float, float, float]
         row = head.split() + [[int(n) for n in comp.split()]] + mid.split() +\
               [[int(n) for n in kpts.split()]] + tail.split()
-        data.append(row)
+        data.append([t(e) for e,t in zip(row,types)])
     labels = ('Gen   ID    Origin   Composition    Enthalpy   Volume  Density'
               '   Fitness   KPOINTS  SYMM  Q_entr A_order S_order')
     IDs = [row[1] for row in data]
