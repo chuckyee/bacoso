@@ -95,12 +95,14 @@ def get_data():
     return DMs
 
 def main():
-    datafile = 'density_matrices.pickle'
+    datafile = 'data/density_matrices.pickle'
 
     if os.path.exists(datafile):
+        print("Loading density matrices from pickle...")
         with open(datafile, 'rb') as f:
             DMs = pickle.load(f)
     else:
+        print("Parsing density matrices and storing to pickle...")
         DMs = get_data()
         with open(datafile, 'wb') as f:
             pickle.dump(DMs, f)
@@ -127,18 +129,20 @@ def main():
     plt.xlabel("U (eV)")
     plt.ylabel("$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$")
     plt.title("Itineracy vs. U")
-    plt.savefig("trnn2-vs-U.pdf", bbox_inches = 'tight')
+    plt.savefig("results/trnn2-vs-U.pdf", bbox_inches = 'tight')
 
     # Scatter plot of E(1)-E(0) vs. tr{n-n^2}
     plt.figure()
     trnn2 = dict((n, c) for n,u,c in tr_rho if u == 1.0)
     dE = dict((n, E_vs_U[n]['E'][1] - E_vs_U[n]['E'][0]) for n in trnn2)
-    for x,y in [(trnn2[name], dE[name]) for name in trnn2]:
-        plt.plot([x], [y], 'o', color = 'blue', alpha = 0.5)
+    names = trnn2.keys()
+    MEV_IN_EV = 1000
+    plt.plot([trnn2[n] for n in names], [dE[n]/MEV_IN_EV for n in names], 'o',
+             color = 'blue', alpha = 0.5)
     plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
-    plt.ylabel('E(1eV) - E(0eV) (meV/atom)')
+    plt.ylabel('dE/dU (per atom)')
     plt.title('Energy Change vs. Itineracy')
-    plt.savefig('dE-vs-trnn2.pdf', bbox_inches = 'tight')
+    plt.savefig('results/dE-vs-trnn2.pdf', bbox_inches = 'tight')
 
 if __name__ == '__main__':
     main()
