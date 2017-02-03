@@ -1,0 +1,31 @@
+# ID   Dimension  Group   Structure                                  Comments
+EA573         2d      1   CoS2O2 tetrahedra, vertex linked         # observed ground state
+EA72          2d      2   CoS fluorite plane + BaO rock salt       # steepest group, various stackings 
+EA334         2d      2   CoS fluorite plane + BaO rock salt       # steepest group, various stackings 
+EA357         2d      2   CoS fluorite plane + BaO rock salt       # steepest group, various stackings 
+EA320         2d      2   CoS fluorite plane + Ba/O layers         # sharp rise
+EA383         2d      3   square pyramidal CoS4O planes, BaCoS2 structure # sharp rise
+EA454         2d      4   CoS4 + CoS3O quasi-plane + Ba2O layers   # sharp rise 
+EA375         2d      5   CoS2O2 quasi-plane + Ba2S layers         # not nearly as sharp rise 
+EA487   quasi-2d      6   CoSO2 square planar zig-zag ribbons, S-vertex sharing in perp. direction + BaS interlayers
+EA80          1d      6   CoSOSO square planar, zig-zag ribbons    # lowest energy for U = 0
+EA155         1d      6   CoSOSO square planar, zig-zag ribbons    # differs in angles / stacking, larger E0 offset
+EA255         1d      6   CoS2O2 square planar, zig-zag ribbons    # low-ish energy for U = 0
+EA10          1d      7   CoS2O trigonal planar + CoS3O tetrahedra, 2-wide ribbons
+EA661         1d      7   CoS2O trigonal planar + CoS3O tetrahedra, 2-wide ribbons
+EA692   quasi-2d      7   CoS2O trigonal planar + CoS2O2 tetrahedra, edge + vertex shared ribbon
+EA623   quasi-2d      8   CoS3O tetrahedron, S-S edge sharing, ribbon, but apical O vertex linked
+EA283         1d      8   CoS3O tetrahedron, S-S edge sharing, ribbon   # differ in stacking / level of distortion
+EA329         1d      8   CoS3O tetrahedron, S-S edge sharing, ribbon   # differ in stacking / level of distortion
+EA540         1d      8   CoS3O tetrahedron, S-S edge sharing, ribbon   # differ in stacking / level of distortion
+EA592         1d      8   CoS3O tetrahedron, S-S edge sharing, ribbon   # differ in stacking / level of distortion
+EA298         1d      8   CoS3O tetrahedron, S-S edge sharing, ribbon   # differ in stacking / level of distortion
+EA365         1d      9   CoS3O tetrahedron strongly distorted, apical-O same side, S-S edge sharing, ribbon   # NONSENSICAL
+EA654         1d      9   CoS3O tetrahedron strongly distorted, apical-O same side, S-S edge sharing, ribbon   # NONSENSICAL
+EA51          1d      9   CoS3O tetrahedron strongly distorted, apical-O same side, S-S edge sharing, ribbon   # NONSENSICAL
+EA582         1d      9   CoS3O tetrahedron strongly distorted, apical-O same side, S-S edge sharing, ribbon   # NONSENSICAL
+EA172         0d     10   Co2S2O2 "molecules" (CoS2O square planar)
+EA696   quasi-2d     11   distorted tetrahedron CoS2O2 and CoS3O        # nearly const
+EA241   quasi-2d     12   distorted tetrahedron CoS3O                   # nearly const
+EA8           1d     13   trigonal planar CoS2O, O-Co-O zigzag chain    # nearly const
+
