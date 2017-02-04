@@ -7,23 +7,34 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from pymatgen import Element
 from pymatgen.analysis.structure_matcher import StructureMatcher
 
 import ios
 
+# TODO:
+#  - organize data into single Pandas dataframe
+#  - cache data on load
 
-def analyze_trnn2():
-    DMs = ios.read_density_matrices()
-    E_vs_U = ios.read_E_vs_U()
 
+def compute_trnn2(DMs):
     # compute sum_spin tr{n-n^2}
     trnn2 = []
     for dm in DMs:
         if dm['U'] > 0:
             dm1 = dm['DATA'][-1]['DATA'][2]['DM1']
             dm2 = dm['DATA'][-1]['DATA'][2]['DM2']
-            nn2 = np.trace(dm1 - np.dot(dm1, dm1)) + np.trace(dm2 - np.dot(dm2, dm2))
+            nn2 = np.trace(dm1 - np.dot(dm1, dm1)) + \
+                  np.trace(dm2 - np.dot(dm2, dm2))
             trnn2.append((dm['NAME'], dm['U'], nn2))
+    return trnn2
+
+
+def analyze_trnn2():
+    DMs = ios.read_density_matrices()
+    E_vs_U = ios.read_E_vs_U()
+    trnn2 = compute_trnn2(DMs)
 
     # Scatter plot of tr{n-n^2} vs. U
     plt.figure()
@@ -69,6 +80,7 @@ def analyze_low_e_structs():
     with open('data/grouped-structs.pickle', 'rb') as f:
         grouped_structs = pickle.load(f)
 
+    # Isolate unique low-energy structures
     energy_cutoff = 0.5         # eV / unit cell
     low_energy_IDs = df[df.Enthalpy < min(df.Enthalpy) + energy_cutoff].ID
     low_energy_IDs = ['EA{}'.format(id) for id in low_energy_IDs]
@@ -77,12 +89,12 @@ def analyze_low_e_structs():
                              for group in grouped_structs]
     low_e_grouped_structs = [group for group in low_e_grouped_structs if group]
 
-    # Isolate unique low-energy structures
-    # (Faster to use cached grouped structures)
-    # structs = ios.read_consolidated_poscars('data/gatheredPOSCARS')
-    # low_energy_structs = [s for s in structs if s.name in low_energy_IDs]
-    # sm = StructureMatcher()
-    # grouped_low_energy_structs = sm.group_structures(low_energy_structs)
+    if False:
+        # Not used: faster to use cached grouped structures read above
+        structs = ios.read_consolidated_poscars('data/gatheredPOSCARS')
+        low_energy_structs = [s for s in structs if s.name in low_energy_IDs]
+        sm = StructureMatcher()
+        low_e_grouped_structs = sm.group_structures(low_energy_structs)
 
     # stem and leaf plot (of sorts)
     for group in low_e_grouped_structs:
@@ -146,7 +158,7 @@ def analyze_low_e_structs():
     plt.ylabel("$E - E_0$ (meV/atom)")
     plt.savefig("results/E-vs-U-eigenstructs.pdf", bbox_inches = "tight")
 
-def analyze_by_structure():
+def analyze_by_motif():
     df = ios.read_individuals_file('data/Individuals')
     E_vs_U = ios.read_E_vs_U()
     with open('data/grouped-structs.pickle', 'rb') as f:
@@ -168,37 +180,60 @@ def analyze_by_structure():
 
 
     DMs = ios.read_density_matrices()
-
-    # compute sum_spin tr{n-n^2}
-    trnn2 = []
-    for dm in DMs:
-        if dm['U'] > 0:
-            dm1 = dm['DATA'][-1]['DATA'][2]['DM1']
-            dm2 = dm['DATA'][-1]['DATA'][2]['DM2']
-            nn2 = np.trace(dm1 - np.dot(dm1, dm1)) + np.trace(dm2 - np.dot(dm2, dm2))
-            trnn2.append((dm['NAME'], dm['U'], nn2))
+    trnn2 = compute_trnn2(DMs)
 
     df = pd.read_csv("motifs.csv")
     grouped_df = df.groupby("Group")
-    grouped_IDs = [[id for id in data.ID] for i,data in grouped_df]
+    grouped_IDs = [(i, [ID for ID in data.ID]) for i,data in grouped_df]
 
     # Scatter plot of E(1)-E(0) vs. tr{n-n^2}
     plt.figure()
     trnn2u1 = dict((n, c) for n,u,c in trnn2 if u == 1.0)
     dE = dict((n, E_vs_U[n]['E'][1] - E_vs_U[n]['E'][0]) for n in trnn2u1)
     MEV_IN_EV = 1000
-    for IDs in grouped_IDs:
+    for group,IDs in grouped_IDs:
+        # if group not in [1, 2, 3, 4, 5, 6]: continue
         plt.plot([trnn2u1[n] for n in IDs], [dE[n]/MEV_IN_EV for n in IDs],
-                 'o', alpha = 0.5)
+                 'o', alpha = 0.5, label = str(group))
+    plt.legend(loc = 'best')
     plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
     plt.ylabel('dE/dU (per atom)')
     plt.title('Energy Change vs. Itineracy')
     plt.show()
-    # plt.savefig('results/dE-vs-trnn2.pdf', bbox_inches = 'tight')
 
+def analyze_by_distance():
+    DMs = ios.read_density_matrices()
+    trnn2 = compute_trnn2(DMs)
+    # with open('data/grouped-structs.pickle', 'rb') as f:
+    #     grouped_structs = pickle.load(f)
+    structs = ios.read_consolidated_poscars('data/gatheredPOSCARS')
 
+    RMAX = 4.0
+    Co = Element('Co')
+    def min_Co_Co_dist(struct):
+        Co_sites = [site for site in struct if site.specie == Co]
+        dist = min(
+            min(dist for neigh,dist in struct.get_neighbors(site, RMAX)
+                if neigh.specie == Co)
+            for site in Co_sites)
+        return dist
+
+    def get_trnn2(ID, U):
+        data = [x for n,u,x in trnn2 if n == ID and u == U]
+        return data[0] if data else None
+
+    U = 0
+    IDs = [name for name,U,x in trnn2 if U == 1.0]
+    # Co_Co_dists = [[min_Co_Co_dist(struct) for struct in group
+    #     if struct.name in names] for group in grouped_structs]
+    xx = [get_trnn2(struct.name, U) for struct in structs if struct.name in IDs]
+    yy = [min_Co_Co_dist(struct) for struct in structs if struct.name in IDs]
+    plt.plot(xx, yy, 'o', alpha = 0.5)
+    plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
+    plt.show()
 
 if __name__ == '__main__':
     # analyze_trnn2()
     # analyze_low_e_structs()
-    analyze_by_structure()
+    # analyze_by_motif()
+    analyze_by_distance()
