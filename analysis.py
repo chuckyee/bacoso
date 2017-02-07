@@ -192,20 +192,17 @@ def analyze_by_motif():
     dE = dict((n, E_vs_U[n]['E'][1] - E_vs_U[n]['E'][0]) for n in trnn2u1)
     MEV_IN_EV = 1000
     for group,IDs in grouped_IDs:
-        # if group not in [1, 2, 3, 4, 5, 6]: continue
         plt.plot([trnn2u1[n] for n in IDs], [dE[n]/MEV_IN_EV for n in IDs],
                  'o', alpha = 0.5, label = str(group))
     plt.legend(loc = 'best')
     plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
     plt.ylabel('dE/dU (per atom)')
     plt.title('Energy Change vs. Itineracy')
-    plt.show()
+    plt.savefig('results/motifs-dE-vs-trnn2.pdf', bbox_inches = 'tight')
 
-def analyze_by_distance():
+def analyze_heuristic_coulomb():
     DMs = ios.read_density_matrices()
     trnn2 = compute_trnn2(DMs)
-    # with open('data/grouped-structs.pickle', 'rb') as f:
-    #     grouped_structs = pickle.load(f)
     structs = ios.read_consolidated_poscars('data/gatheredPOSCARS')
 
     RMAX = 4.0
@@ -218,22 +215,41 @@ def analyze_by_distance():
             for site in Co_sites)
         return dist
 
+    def Co_Co_dists(struct):
+        Co_sites = [site for site in struct if site.specie == Co]
+        dists = [
+            [dist for neigh,dist in struct.get_neighbors(site, RMAX)
+                if neigh.specie == Co]
+            for site in Co_sites]
+        return dists
+
     def get_trnn2(ID, U):
         data = [x for n,u,x in trnn2 if n == ID and u == U]
         return data[0] if data else None
 
-    U = 0
     IDs = [name for name,U,x in trnn2 if U == 1.0]
-    # Co_Co_dists = [[min_Co_Co_dist(struct) for struct in group
-    #     if struct.name in names] for group in grouped_structs]
-    xx = [get_trnn2(struct.name, U) for struct in structs if struct.name in IDs]
-    yy = [min_Co_Co_dist(struct) for struct in structs if struct.name in IDs]
-    plt.plot(xx, yy, 'o', alpha = 0.5)
-    plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
-    plt.show()
+    E_vs_U = ios.read_E_vs_U()
+    MEV_IN_EV = 1000
+    U1 = 1
+    U2 = 2
+    for U1,U2 in [(0,1), (1,2), (2,3)]:
+        xx = [(E_vs_U[struct.name]['E'][U2] - E_vs_U[struct.name]['E'][U1])/MEV_IN_EV
+              for struct in structs if struct.name in IDs]
+        yy = [sum(np.exp(-r/4)/(r-2) for dists in Co_Co_dists(struct) for r in dists)
+              for struct in structs if struct.name in IDs]
+        plt.plot(xx, yy, 'o', alpha = 0.5)
+        plt.xlabel('$dE/dU$ (eV)')
+        plt.ylabel('$\sum_{r_i<4} e^{-r_i/4}/(r_i-2)$')
+        plt.title('Heuristic Coulomb vs. Energy Slope Between U = {} and {}eV'.format(U1, U2))
+        plt.savefig('results/heuristic-Coulomb-{}-{}.pdf'.format(U1, U2), bbox_inches = 'tight')
+
+
+def analyze_local_geometry():
+    pass
 
 if __name__ == '__main__':
     # analyze_trnn2()
     # analyze_low_e_structs()
     # analyze_by_motif()
-    analyze_by_distance()
+    # analyze_heuristic_coulomb()
+    analyze_local_geometry()
