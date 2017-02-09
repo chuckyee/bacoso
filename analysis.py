@@ -218,9 +218,11 @@ def analyze_heuristic_coulomb():
     def Co_Co_dists(struct):
         Co_sites = [site for site in struct if site.specie == Co]
         dists = [
-            [dist for neigh,dist in struct.get_neighbors(site, RMAX)
-                if neigh.specie == Co]
+            sorted([dist for neigh,dist in struct.get_neighbors(site, RMAX)
+                if neigh.specie == Co])
             for site in Co_sites]
+        print('{:5} {}'.format(struct.name,
+                               ' '.join('{:10f}'.format(x) for x in dists[0])))
         return dists
 
     def get_trnn2(ID, U):
@@ -230,18 +232,22 @@ def analyze_heuristic_coulomb():
     IDs = [name for name,U,x in trnn2 if U == 1.0]
     E_vs_U = ios.read_E_vs_U()
     MEV_IN_EV = 1000
-    U1 = 1
-    U2 = 2
+    U1 = 0
+    U2 = 1
     for U1,U2 in [(0,1), (1,2), (2,3)]:
         xx = [(E_vs_U[struct.name]['E'][U2] - E_vs_U[struct.name]['E'][U1])/MEV_IN_EV
               for struct in structs if struct.name in IDs]
-        yy = [sum(np.exp(-r/4)/(r-2) for dists in Co_Co_dists(struct) for r in dists)
+        yy = [sum(np.exp(-r)/r for dists in Co_Co_dists(struct) for r in dists)
               for struct in structs if struct.name in IDs]
+        # yy = [sum(np.exp(-r/4)/(r-2) for dists in Co_Co_dists(struct) for r in dists)
+        #       for struct in structs if struct.name in IDs]
         plt.plot(xx, yy, 'o', alpha = 0.5)
         plt.xlabel('$dE/dU$ (eV)')
-        plt.ylabel('$\sum_{r_i<4} e^{-r_i/4}/(r_i-2)$')
+        plt.ylabel('$\sum_{r_i<4} e^{-r_i}/r_i$')
+        # plt.ylabel('$\sum_{r_i<4} e^{-r_i/4}/(r_i-2)$')
         plt.title('Heuristic Coulomb vs. Energy Slope Between U = {} and {}eV'.format(U1, U2))
-        plt.savefig('results/heuristic-Coulomb-{}-{}.pdf'.format(U1, U2), bbox_inches = 'tight')
+        # plt.show()
+        plt.savefig('results/heuristic-Coulomb-simple-{}-{}.pdf'.format(U1, U2), bbox_inches = 'tight')
 
 
 def analyze_local_geometry():
@@ -251,5 +257,5 @@ if __name__ == '__main__':
     # analyze_trnn2()
     # analyze_low_e_structs()
     # analyze_by_motif()
-    # analyze_heuristic_coulomb()
-    analyze_local_geometry()
+    analyze_heuristic_coulomb()
+    # analyze_local_geometry()
