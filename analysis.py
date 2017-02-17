@@ -287,13 +287,28 @@ def analyze_local_geometry():
 
 
 def analyze_pca():
+    # load density matrices
     DMs = ios.read_density_matrices()
     trnn2 = compute_trnn2(DMs)
-    
-    
+    trnn2 = pd.DataFrame(trnn2, columns = "SYSTEM U_minus_J trnn2".split())
+
+    # load energies
+    energies = pd.read_csv("data/E-vs-U-all-USPEX-Ran.dat")
+
+    # merge energies and tr{n-n^2}
+    data = pd.merge(trnn2, energies, how = 'inner', on = ['SYSTEM', 'U_minus_J'])
+
+    # load distances
+    with open('data/Co-Co-dists.dat', 'r') as f:
+        lines = [line.split() for line in f.readlines()]
+    lines = [[line[0], [float(x) for x in line[1:]]] for line in lines]
+    dists = pd.DataFrame(lines, columns = "SYSTEM distances".split())
+
+
 if __name__ == '__main__':
     # analyze_trnn2()
     # analyze_low_e_structs()
     # analyze_by_motif()
     # analyze_heuristic_coulomb()
     # analyze_local_geometry()
+    # analyze_pca()
