@@ -19,15 +19,18 @@ import ios
 
 
 def compute_trnn2(DMs):
-    # compute sum_spin tr{n-n^2}
+    # compute (1/2) sum_spin tr{n-n^2} for both atoms
     trnn2 = []
     for dm in DMs:
-        if dm['U'] > 0:
-            dm1 = dm['DATA'][-1]['DATA'][2]['DM1']
-            dm2 = dm['DATA'][-1]['DATA'][2]['DM2']
-            nn2 = np.trace(dm1 - np.dot(dm1, dm1)) + \
-                  np.trace(dm2 - np.dot(dm2, dm2))
-            trnn2.append((dm['NAME'], dm['U'], nn2))
+        if dm['U'] == 0:
+            continue
+        nn2 = 0
+        for Co in [2,3]:
+            dm1 = dm['DATA'][-1]['DATA'][Co]['DM1']
+            dm2 = dm['DATA'][-1]['DATA'][Co]['DM2']
+            nn2 += np.trace(dm1 - np.dot(dm1, dm1)) + \
+                   np.trace(dm2 - np.dot(dm2, dm2))
+        trnn2.append((dm['NAME'], dm['U'], 0.5 * nn2))
     return trnn2
 
 
@@ -53,10 +56,12 @@ def analyze_trnn2():
     dE = dict((n, E_vs_U[n]['E'][1] - E_vs_U[n]['E'][0]) for n in trnn2u1)
     names = trnn2u1.keys()
     MEV_IN_EV = 1000
-    plt.plot([trnn2u1[n] for n in names], [dE[n]/MEV_IN_EV for n in names],
+    NUM_ATOMS = 8
+    plt.plot([1.5,2.0], [1.5,2.0], alpha = 0.5, color = 'black')
+    plt.plot([trnn2u1[n] for n in names], [NUM_ATOMS*dE[n]/MEV_IN_EV for n in names],
              'o', color = 'blue', alpha = 0.5)
-    plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
-    plt.ylabel('dE/dU (per atom)')
+    plt.xlabel('$(1/2)\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
+    plt.ylabel('dE/dU')
     plt.title('Energy Change vs. Itineracy')
     plt.savefig('results/dE-vs-trnn2.pdf', bbox_inches = 'tight')
 
@@ -68,7 +73,7 @@ def analyze_trnn2():
     MEV_IN_EV = 1000
     plt.plot([trnn2u1[n] for n in names], [E[n]/MEV_IN_EV for n in names],
              'o', color = 'blue', alpha = 0.5)
-    plt.xlabel('$\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
+    plt.xlabel('$(1/2)\sum_\sigma\mathrm{tr}\{n_\sigma - n_\sigma^2\}$')
     plt.ylabel('E(U = 0) (eV/atom)')
     plt.title('Total Energy vs. Itineracy')
     plt.savefig('results/E0-vs-trnn2.pdf', bbox_inches = 'tight')
@@ -149,13 +154,13 @@ def analyze_low_e_structs():
         if k not in eigen_IDs:
             continue
         xx = v['U']
-        yy = np.asarray(v['E']) - np.asarray([E0(U) for U in xx])
-        # yy = v['E']
+        # yy = np.asarray(v['E']) - np.asarray([E0(U) for U in xx])
+        yy = v['E']
         plt.plot(xx, yy, 'o-', color = "blue", alpha = 0.5)
 
     plt.xlim(-0.3, 3.3)
     plt.xlabel("$U - J$ (eV)")
-    plt.ylabel("$E - E_0$ (meV/atom)")
+    plt.ylabel("$E$ (meV/atom)")
     plt.savefig("results/E-vs-U-eigenstructs.pdf", bbox_inches = "tight")
 
 def analyze_by_motif():
@@ -239,23 +244,56 @@ def analyze_heuristic_coulomb():
               for struct in structs if struct.name in IDs]
         yy = [sum(np.exp(-r)/r for dists in Co_Co_dists(struct) for r in dists)
               for struct in structs if struct.name in IDs]
-        # yy = [sum(np.exp(-r/4)/(r-2) for dists in Co_Co_dists(struct) for r in dists)
+        # yy = [sum(np.exp(-r/4)/(r-2) for dists in Co_Co_dists(struct) for r in dists) # Ran's heuristic
         #       for struct in structs if struct.name in IDs]
         plt.plot(xx, yy, 'o', alpha = 0.5)
-        plt.xlabel('$dE/dU$ (eV)')
+        plt.xlabel('$dE/dU$')
         plt.ylabel('$\sum_{r_i<4} e^{-r_i}/r_i$')
         # plt.ylabel('$\sum_{r_i<4} e^{-r_i/4}/(r_i-2)$')
         plt.title('Heuristic Coulomb vs. Energy Slope Between U = {} and {}eV'.format(U1, U2))
         # plt.show()
         plt.savefig('results/heuristic-Coulomb-simple-{}-{}.pdf'.format(U1, U2), bbox_inches = 'tight')
 
-
 def analyze_local_geometry():
-    pass
+    # Compute Ran's heuristic, and variations
+    with open('data/Co-Co-dists.dat', 'r') as f:
+        lines = [line.split() for line in f.readlines()]
+    lines = [[line[0], [float(x) for x in line[1:]]] for line in lines]
+    dists = pd.DataFrame(lines, columns = "ID distances".split())
+    motifs = pd.read_csv("motifs.csv")
+    data = pd.merge(dists, motifs, how = 'inner', on = ['ID'])
 
+    energies = pd.read_csv("data/E-vs-U-all-USPEX-Ran.dat")
+    Espin = energies[energies.is_spin == True]
+    EU0 = Espin[Espin.U_minus_J == 0]
+    EU1 = Espin[Espin.U_minus_J == 1]
+
+    sorted_IDs = data.sort_values(by = 'distances').ID
+    ax1 = plt.subplot('211')
+    ax2 = plt.subplot('212')
+    NUM_ATOMS_PER_UC = 8
+    MEV_IN_EV = 1000
+    for i,ID in enumerate(sorted_IDs):
+        dists = data[data.ID == ID].distances.values[0]
+        metric = sum([1/r for r in dists if r < 3])
+        # heur = sum(np.exp(-r)/r for r in dists)
+        ax2.plot([i], metric, 'o', alpha = 0.5)
+        # ax2.plot([i]*len(dists), dists, 'o', alpha = 0.5)
+        E0 = EU0[EU0.SYSTEM == ID].final_energy.values[0]
+        E1 = EU1[EU1.SYSTEM == ID].final_energy.values[0]
+        ax1.plot([i], [(E1-E0) * MEV_IN_EV / NUM_ATOMS_PER_UC], 'o', alpha = 0.5)
+    plt.xticks(range(len(sorted_IDs)), [ID for ID in sorted_IDs], rotation = 'vertical')
+    plt.show()
+
+
+def analyze_pca():
+    DMs = ios.read_density_matrices()
+    trnn2 = compute_trnn2(DMs)
+    
+    
 if __name__ == '__main__':
     # analyze_trnn2()
     # analyze_low_e_structs()
     # analyze_by_motif()
-    analyze_heuristic_coulomb()
+    # analyze_heuristic_coulomb()
     # analyze_local_geometry()
