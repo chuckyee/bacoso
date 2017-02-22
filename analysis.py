@@ -305,6 +305,57 @@ def analyze_pca():
     dists = pd.DataFrame(lines, columns = "SYSTEM distances".split())
 
 
+def analyze_compressibility():
+    # Compute Ran's heuristic, and variations
+    with open('data/Co-Co-dists.dat', 'r') as f:
+        lines = [line.split() for line in f.readlines()]
+    lines = [[line[0], [float(x) for x in line[1:]]] for line in lines]
+    dists = pd.DataFrame(lines, columns = "SYSTEM distances".split()).set_index('SYSTEM')
+    dists['metric'] = dists.apply(lambda row: sum([np.exp(-r) for r in row.distances]), axis = 1)
+    print(dists.head())
+
+    energies = pd.read_csv("data/E-vs-U-all-USPEX-Ran.dat")
+    Espin = energies[energies.is_spin == True]
+    EU0 = Espin[Espin.U_minus_J == 0][['SYSTEM', 'final_energy']].set_index('SYSTEM')
+    EU1 = Espin[Espin.U_minus_J == 1][['SYSTEM', 'final_energy']].set_index('SYSTEM')
+    EU2 = Espin[Espin.U_minus_J == 2][['SYSTEM', 'final_energy']].set_index('SYSTEM')
+    EU3 = Espin[Espin.U_minus_J == 3][['SYSTEM', 'final_energy']].set_index('SYSTEM')
+    NUM_ATOMS_PER_UC = 8
+    for df in [EU0, EU1, EU2, EU3]:
+        df.final_energy /= NUM_ATOMS_PER_UC
+    EE1 = EU0.join(EU1, lsuffix = '0', rsuffix = '1')
+    EE2 = EU2.join(EU3, lsuffix = '2', rsuffix = '3')
+    EE = EE1.join(EE2)
+    print(EE.head())
+
+    data = EE.join(dists.metric)
+    print(data.head())
+
+    from scipy import optimize
+    U = [0, 1, 2, 3]
+    columns = "a0 a1 a2 s0 s1 s2".split()
+    def f(x, a0, a1, a2):
+        return a0 + a1*x + a2*x**2
+    def fit_parabola(row):
+        data = [row.final_energy0, row.final_energy1, row.final_energy2, row.final_energy3]
+        popt, pcov = optimize.curve_fit(f, U, data)
+        perr = np.sqrt(np.diag(pcov))
+        ret = dict(zip(columns, np.hstack((popt, perr))))
+        return pd.Series(ret)
+    data[columns] = data.apply(fit_parabola, axis = 1)
+    print(data)
+
+    ys = [data.a0, data.a1, data.a2]
+    yerrs = [data.s0, data.s1, data.s2]
+    ylabels = ['$E(U=0)$ (eV)', '$dE/dU$', '$(1/2) d^2E/dU^2$ (1/eV)']
+    for i,(y,yerr,ylabel) in enumerate(zip(ys,yerrs,ylabels)):
+        plt.figure()
+        plt.errorbar(data.metric, y, yerr = yerr, fmt = 'o', alpha = 0.7)
+        plt.xlabel('$\sum_i e^{-r_i}$')
+        plt.ylabel(ylabel)
+        plt.savefig('results/metric-vs-fit{}.pdf'.format(i), bbox_inches = 'tight')
+
+
 if __name__ == '__main__':
     # analyze_trnn2()
     # analyze_low_e_structs()
@@ -312,3 +363,4 @@ if __name__ == '__main__':
     # analyze_heuristic_coulomb()
     # analyze_local_geometry()
     # analyze_pca()
+    analyze_compressibility()
