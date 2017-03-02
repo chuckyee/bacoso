@@ -2,7 +2,7 @@ INCAR:
   ALGO: FAST
   EDIFF_PER_ATOM: 5.0e-05
   ENCUT: 520
-  IBRION: 2
+  IBRION: -1
   ICHARG: 1
   ISIF: 3
   ISMEAR: -5
@@ -58,7 +58,7 @@ INCAR:
       V: 3.25
       W: 6.2
     O:
-      Co: 3.32
+      Co: 0.000000001
       Cr: 3.7
       Fe: 5.3
       Mn: 3.9
@@ -86,7 +86,7 @@ INCAR:
     Ce: 5
     Eu: 10
   NELM: 100
-  NSW: 99
+  NSW: 0
   PREC: Accurate
   SIGMA: 0.05
 KPOINTS:
