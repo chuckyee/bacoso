@@ -22,7 +22,8 @@ def compute_trnn2(DMs):
     # compute (1/2) sum_spin tr{n-n^2} for both atoms
     trnn2 = []
     for dm in DMs:
-        if dm['U'] == 0:
+        # skip runs where DM wasn't printed out
+        if not dm['DATA'][-1]['DATA']:
             continue
         nn2 = 0
         for Co in [2,3]:
@@ -363,4 +364,4 @@ if __name__ == '__main__':
     # analyze_heuristic_coulomb()
     # analyze_local_geometry()
     # analyze_pca()
-    analyze_compressibility()
+    # analyze_compressibility()
