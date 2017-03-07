@@ -27,8 +27,8 @@ class BCSOSet(sets.DictSet):
 submit_file = """#!/bin/sh
 
 #$ -N {}
-#$ -pe mpi2_14_one 12
-#$ -q wp12
+#$ -pe mpi2_14_one {}
+#$ -q {}
 #$ -j y
 #$ -M chuckyee@physics.rutgers.edu
 #$ -m e
@@ -43,7 +43,7 @@ export OMP_NUM_THREADS=1
 
 BIN=vasp
 
-python custvasp.py /opt/mpich2/intel/14.0/bin/mpiexec -n $NSLOTS -machinefile $TMPDIR/machines -port $port $BIN
+python $HOME/software/bacoso/custvasp.py /opt/mpich2/intel/14.0/bin/mpiexec -n $NSLOTS -machinefile $TMPDIR/machines -port $port $BIN
 """
 
 def main():
@@ -56,14 +56,17 @@ def main():
                           if struct.name in low_energy_ids]
 
     # write VASP inputs for each structure
-    base_dir = 'inputs'
+    base_dir = 'inputs/U0.4'
+    nslots = 12
+    queues = 'wp12'
+    submit_fname = 'wp.vasp'
+
     for struct in low_energy_structs:
         v = BCSOSet(struct)
         output_dir = os.path.join(base_dir, struct.name)
         v.write_input(output_dir, make_dir_if_not_present=True)
-        with open(os.path.join(output_dir, 'wp12.vasp'), 'w') as f:
-            f.write(submit_file.format(struct.name))
-        shutil.copy('custvasp.py', output_dir)
+        with open(os.path.join(output_dir, submit_fname), 'w') as f:
+            f.write(submit_file.format(struct.name, nslots, queues))
 
 if __name__ == '__main__':
     main()
